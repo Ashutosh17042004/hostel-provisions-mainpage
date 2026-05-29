@@ -14,17 +14,14 @@ export default function Home() {
   // }
 
   function setCookie(name, value, days = 7) {
-  const expires = new Date(Date.now() + days * 86400000).toUTCString();
-  
-  // Check if Next.js is running in the production environment
-  const isProduction = process.env.NODE_ENV === "production";
-  
-  // Create the Secure string only if in production
-  const secureFlag = isProduction ? "; Secure" : "";
+    const expires = new Date(Date.now() + days * 86400000).toUTCString();
 
-  // Append the secureFlag to the end of the document.cookie string
-  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax${secureFlag}`;
-}
+    // Check if the current website is running on HTTPS (Production)
+    const isSecure = window.location.protocol === "https:" ? "; Secure" : "";
+
+    // Attach the isSecure string to the end of your cookie
+    document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax${isSecure}`;
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
