@@ -1,6 +1,6 @@
-import { cookies } from "next/headers";
 import { connectToDatabase } from "@/lib/mongodb";
 import Hostel from "@/app/AdminDashboard/api/hostel_modal/hostel";
+import { getAuthUser } from "@/lib/protectRoute";
 
 async function sendTelegramNotification(hostel, order) {
   const token = hostel?.telegram_token || process.env.TELEGRAM_TOKEN;
@@ -41,38 +41,69 @@ ${itemLines}
 
 export async function POST(request) {
   try {
-    const { cart, total } = await request.json();
-    const cookieStore = await cookies();
-    const userDataStr = cookieStore.get("user_data")?.value;
-
-    if (!userDataStr || !cart || cart.length === 0) {
-      return Response.json({ message: "Invalid request" }, { status: 400 });
+    const auth = await getAuthUser();
+    if (!auth) {
+      return Response.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const user = JSON.parse(decodeURIComponent(userDataStr));
+    const { cart } = await request.json();
+    if (!Array.isArray(cart) || cart.length === 0) {
+      return Response.json({ message: "Cart is empty" }, { status: 400 });
+    }
+
     await connectToDatabase();
+
+    const hostel = await Hostel.findOne({ hostelname: auth.hostelname });
+    if (!hostel) {
+      return Response.json({ message: "Hostel not found" }, { status: 404 });
+    }
+
+    // Build an authoritative price lookup from the DB so the order total and
+    // line prices cannot be tampered with by a modified client payload.
+    const priceMap = new Map();
+    for (const category of hostel.products) {
+      for (const product of category.products) {
+        priceMap.set(String(product._id), {
+          name: product.name,
+          price: product.price,
+        });
+      }
+    }
+
+    const items = [];
+    let totalAmount = 0;
+    for (const line of cart) {
+      const ref = priceMap.get(String(line?._id));
+      const qty = Number(line?.qty);
+      if (!ref || !Number.isFinite(qty) || qty <= 0) {
+        return Response.json(
+          { message: "Cart contains an invalid or unavailable item" },
+          { status: 400 },
+        );
+      }
+      const quantity = Math.floor(qty);
+      items.push({ name: ref.name, price: ref.price, qty: quantity });
+      totalAmount += ref.price * quantity;
+    }
 
     const order = {
       orderId: `ORD-${Date.now()}`,
-      userName: user.name || user.fullname,
-      userEmail: user.email,
-      items: cart,
-      totalAmount: total,
+      userName: auth.fullname,
+      userEmail: auth.email,
+      items,
+      totalAmount,
       date: new Date().toISOString(),
       status: "Pending",
     };
 
-    // Hostel schema stores Orders as an array of strings.
-    const hostel = await Hostel.findOneAndUpdate(
-      { hostelname: user.hostelname },
-      { $push: { Orders: JSON.stringify(order) } },
-      { new: true },
-    );
+    // Hostel schema stores Orders as an array of stringified order records.
+    hostel.Orders.push(JSON.stringify(order));
+    await hostel.save();
 
     await sendTelegramNotification(hostel, order);
 
     return Response.json(
-      { ok: true, message: "Order placed successfully!" },
+      { ok: true, message: "Order placed successfully!", orderId: order.orderId },
       { status: 200 },
     );
   } catch (error) {

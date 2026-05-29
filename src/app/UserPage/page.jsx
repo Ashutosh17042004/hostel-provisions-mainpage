@@ -330,7 +330,7 @@ export default function UserPage() {
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 py-20 text-center dark:border-zinc-800">
               <PackageOpen className="mb-4 h-12 w-12 text-zinc-400" />
               <h3 className="text-lg font-medium text-zinc-900 dark:text-white">No products yet</h3>
-              <p className="text-sm text-zinc-500">Your admin hasn't added any provisions.</p>
+              <p className="text-sm text-zinc-500">Your admin hasn&apos;t added any provisions.</p>
             </div>
           ) : (
             categories.map((category) => (

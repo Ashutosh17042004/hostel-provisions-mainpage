@@ -2,8 +2,7 @@ import { cookies } from "next/headers";
 import { connectToDatabase } from "@/lib/mongodb";
 import User from "@/app/api/user_modal/User";
 import { generateToken } from "@/lib/jwt";
-
-const SEVEN_DAYS = 60 * 60 * 24 * 7;
+import { authCookieOptions, displayCookieOptions } from "@/lib/cookies";
 
 export async function POST(request) {
   try {
@@ -33,34 +32,55 @@ export async function POST(request) {
         { status: 401 },
       );
     }
+
+    // Non-sensitive profile fields safe to expose to the client for display.
+    const publicUser = {
+      _id: user._id.toString(),
+      role: user.role,
+      fullname: user.fullname,
+      email: user.email,
+      hostelname: user.hostelname,
+      profilepic: user.profilepic,
+    };
+
+    // The signed JWT is the source of truth for authorization. It carries the
+    // identity fields the API routes need (role + hostelname) so they never
+    // have to trust the client-writable `user_data` cookie.
     const authtoken = generateToken({
       userId: user._id.toString(),
       role: user.role,
+      hostelname: user.hostelname,
+      fullname: user.fullname,
+      email: user.email,
     });
 
     const cookieStore = await cookies();
-    cookieStore.set("auth", authtoken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: SEVEN_DAYS,
-    });
+
+    // httpOnly session cookie — never readable by client JS.
+    cookieStore.set("auth", authtoken, authCookieOptions(request));
+
+    // Display-only cookie. Set server-side with correct, host-relative
+    // attributes so it actually persists in production (the previous
+    // client-side setCookie pinned domain=.example.com and dropped it).
+    // Pass the raw JSON string — Next.js URL-encodes cookie values on
+    // serialization, and the client reads it back with a single
+    // decodeURIComponent (see AdminDashboard / UserPage getCookie).
+    cookieStore.set(
+      "user_data",
+      JSON.stringify(publicUser),
+      displayCookieOptions(request),
+    );
 
     return Response.json({
       ok: true,
       message: "Login successful",
-      user: {
-        _id: user._id,
-        role: user.role,
-        fullname: user.fullname,
-        email: user.email,
-        hostelname: user.hostelname,
-        profilepic: user.profilepic,
-      },
+      user: publicUser,
     });
   } catch (err) {
     console.error("POST /api/login failed:", err);
-    return Response.json({ message: err.message }, { status: 500 });
+    return Response.json(
+      { message: "Something went wrong. Please try again." },
+      { status: 500 },
+    );
   }
 }
