@@ -55,8 +55,8 @@ export async function POST(request) {
         role: user.role,
         fullname: user.fullname,
         email: user.email,
-        profilepic: user.profilepic,
         hostelname: user.hostelname,
+        profilepic: user.profilepic,
       },
     });
   } catch (err) {
