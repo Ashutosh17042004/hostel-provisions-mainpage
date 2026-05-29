@@ -8,20 +8,27 @@ export default function Home() {
   const [password, setPassword] = useState("");
   const router = useRouter();
 
-  // function setCookie(name, value, days = 7) {
-  //   const expires = new Date(Date.now() + days * 86400000).toUTCString();
-  //   document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
-  // }
-
   function setCookie(name, value, days = 7) {
     const expires = new Date(Date.now() + days * 86400000).toUTCString();
+    // document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
 
-    // Check if the current website is running on HTTPS (Production)
-    const isSecure = window.location.protocol === "https:" ? "; Secure" : "";
-
-    // Attach the isSecure string to the end of your cookie
-    document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax${isSecure}`;
+    document.cookie = `${name}=${encodeURIComponent(value)};
+   expires=${expires};
+   path=/;
+   domain=.example.com;
+   SameSite=None;
+   Secure`;
   }
+
+  // function setCookie(name, value, days = 7) {
+  //   const expires = new Date(Date.now() + days * 86400000).toUTCString();
+
+  //   // Check if the current website is running on HTTPS (Production)
+  //   const isSecure = window.location.protocol === "https:" ? "; Secure" : "";
+
+  //   // Attach the isSecure string to the end of your cookie
+  //   document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax${isSecure}`;
+  // }
 
   async function handleSubmit(e) {
     e.preventDefault();
